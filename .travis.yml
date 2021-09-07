@@ -1,0 +1,35 @@
+language: generic
+sudo: required
+services:
+  - docker
+
+before_install:
+  docker build -t mandicm223/react-test -f ./react-frontend/Dockerfile.dev ./react-frontend
+
+script:
+  docker run -e CI=true mandicm223/react-test npm test
+
+after_success:
+  - docker build -t mandicm223/multi-react ./react-frontend
+  - docker build -t mandicm223/multi-nginx ./nginx
+  - docker build -t mandicm223/multi-express ./express-server
+  - docker build -t mandicm223/multi-worker ./worker
+#Log into Docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+#Push images to DockerHub
+  - docker push mandicm223/multi-react
+  - docker push mandicm223/multi-nginx
+  - docker push mandicm223/multi-express
+  - docker push mandicm223/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: us-east-1
+  app: docker-multi-container-app
+  env: Dockermulticontainerapp-env
+  bucket_name: elasticbeanstalk-us-east-1-513960635379
+  bucket_path: docker-multi-container-app
+  on:
+    branch: main
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
